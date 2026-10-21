@@ -1,0 +1,52 @@
+name: Build Yamiko extension APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Clone keiyoushi/extensions-source
+        run: git clone --depth 1 https://github.com/keiyoushi/extensions-source
+
+      - name: Add Yamiko module
+        run: |
+          mkdir -p extensions-source/src/ru/yamiko/src/eu/kanade/tachiyomi/extension/ru/yamiko
+          cp extension/Yamiko.kt extensions-source/src/ru/yamiko/src/eu/kanade/tachiyomi/extension/ru/yamiko/
+          cp extension/build.gradle.kts extensions-source/src/ru/yamiko/
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        run: |
+          cd extensions-source
+          ./gradlew :src:ru:yamiko:assembleRelease --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p apk
+          find extensions-source/src/ru/yamiko/build/outputs -name '*.apk' -exec cp {} apk/ ; true
+          ls -la apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yamiko-extension-apk
+          path: apk/*.apk
+          retention-days: 14
